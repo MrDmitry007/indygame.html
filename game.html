@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Менеджер Ресторана | Asro Games (Dmitry)</title>
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Шрифт Inter и JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --accent: #14b8a6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        /* Секретные темы, которые переключаются при 5 кликах по заголовку */
+        body.theme-neon {
+            --bg-main: #090d16;
+            --bg-card: #111827;
+            --text-main: #f8fafc;
+            background-color: #090d16;
+            color: #f8fafc;
+        }
+
+        body.theme-sunset {
+            --bg-main: #2e1065;
+            --bg-card: #3b0764;
+            --text-main: #fef08a;
+            background-color: #2e1065;
+            color: #fef08a;
+        }
+
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* Анимация всплывающих уведомлений */
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(12px) scale(0.95); }
+            15% { opacity: 1; transform: translateY(0) scale(1); }
+            85% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-10px) scale(0.95); }
+        }
+
+        .toast-anim {
+            animation: floatUp 3.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Пульсация кнопки рекламы */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.5); }
+            50% { box-shadow: 0 0 0 8px rgba(20, 184, 166, 0); }
+        }
+
+        .btn-ad-pulse {
+            animation: pulseGlow 2s infinite;
+        }
+
+        /* Стилизация скроллбара */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.4);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative">
+
+    <!-- ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ (БЕЗ ALERT) -->
+    <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4"></div>
+
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ: БЕЙДЖ СТУДИИ И ЗАГОЛОВОК С ПАСХАЛКОЙ (5 КЛИКОВ) -->
+    <header class="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 pb-2">
+        <div class="bg-slate-900 text-white rounded-2xl p-3 sm:px-6 sm:py-4 shadow-lg border-b-4 border-teal-400 flex flex-col md:flex-row items-center justify-between gap-3">
+            
+            <!-- Заголовок игры (Секретный клик: 5 раз быстро меняет тему) -->
+            <div class="flex items-center gap-3 cursor-pointer group" id="secretTitleTrigger" title="Секрет: кликни 5 раз быстро!">
+                <div class="w-11 h-11 rounded-xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-2xl transition-transform group-active:scale-90">
+                    🍔
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-lg sm:text-xl font-black tracking-wider text-teal-400 uppercase select-none">
+                            МЕНЕДЖЕР РЕСТОРАНА
+                        </h1>
+                        <span class="text-[11px] font-bold uppercase tracking-widest bg-purple-600/80 text-white px-2 py-0.5 rounded-md">
+                            Заказ №9
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-300">
+                        Стиль: Ресторан, минимализм • Бегай по залу, собирай бургеры и подавай клиентам!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Бейдж Инди-Студии из рабочего листа -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+                <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="text-base">🍕</span>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Инди-Студия</div>
+                        <div class="font-bold text-emerald-400">Asro Games</div>
+                    </div>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="text-base">👨‍💻</span>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Разработчик</div>
+                        <div class="font-bold text-white">Dmitry</div>
+                    </div>
+                </div>
+                <button id="soundToggleBtn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-xl font-semibold text-slate-200 transition active:scale-95" title="Вкл/Выкл звук">
+                    🔊 Звук
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ОСНОВНОЙ КОНТЕЙНЕР: ИГРА + ПАНЕЛЬ БИЗНЕС-МОДЕЛИ ХАКАТОНА -->
+    <main class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-2 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+        <!-- ЛЕВАЯ/ЦЕНТРАЛЬНАЯ КОЛОНКА: ИГРОВАЯ ЗОНА (8 колонок) -->
+        <section class="lg:col-span-8 flex flex-col gap-3">
+
+            <!-- СТАТИСТИКА И УДЕРЖАНИЕ (localStorage) -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <!-- Текущий счет -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-2.5 shadow-sm border border-slate-200/80 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase text-slate-400">Очки</div>
+                        <div id="scoreDisplay" class="text-lg sm:text-xl font-black text-slate-800 dark:text-white font-mono-code">0</div>
+                    </div>
+                    <span class="text-xl">⭐</span>
+                </div>
+
+                <!-- Рекорд в localStorage -->
+                <div class="bg-slate-900 text-white rounded-xl p-2.5 shadow-sm border border-teal-500/50 flex items-center justify-between" title="Сохранено через localStorage.setItem('record', score)">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase text-teal-400 flex items-center gap-1">
+                            <span>Рекорд</span>
+                            <span class="text-[9px] bg-teal-500/20 px-1 rounded">localStorage</span>
+                        </div>
+                        <div id="recordDisplay" class="text-lg sm:text-xl font-black text-teal-300 font-mono-code">0</div>
+                    </div>
+                    <span class="text-xl">💾</span>
+                </div>
+
+                <!-- Монеты (Gold) -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-2.5 shadow-sm border border-amber-300/80 dark:border-amber-500/40 flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">Монеты</div>
+                        <div id="goldDisplay" class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400 font-mono-code">0</div>
+                    </div>
+                    <span class="text-xl">💰</span>
+                </div>
+
+                <!-- Здоровье / Репутация шефа (HP) -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-2.5 shadow-sm border border-rose-200 dark:border-rose-500/40 flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase text-rose-500">HP Шефа</div>
+                        <div id="hpDisplay" class="text-lg sm:text-xl font-black text-rose-600 dark:text-rose-400 font-mono-code">100</div>
+                    </div>
+                    <span class="text-xl">❤️</span>
+                </div>
+
+                <!-- Множитель бонуса и оружие -->
+                <div class="col-span-2 sm:col-span-1 bg-white dark:bg-slate-800 rounded-xl p-2.5 shadow-sm border border-purple-200 dark:border-purple-500/40 flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase text-purple-600 dark:text-purple-400">Экипировка</div>
+                        <div id="weaponStatusDisplay" class="text-xs font-extrabold text-slate-700 dark:text-slate-200 truncate">Руки шефа 🧤</div>
+                    </div>
+                    <span id="multiplierBadge" class="hidden bg-teal-500 text-slate-950 font-black text-xs px-1.5 py-0.5 rounded animate-bounce">x2</span>
+                </div>
+            </div>
+
+            <!-- ПАНЕЛЬ ЗАКАЗОВ И ТАЙМЕРОВ ТЕРПЕНИЯ КЛИЕНТОВ -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                            🛎️ Активные заказы клиентов (Таймеры терпения)
+                        </span>
+                    </div>
+                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                        Собрано бургеров в руках: <span id="carriedBurgersDisplay" class="font-black text-teal-600 dark:text-teal-400 text-sm">0</span> 🍔
+                        <span class="hidden sm:inline text-[11px] text-slate-400">(Отнеси к стойке выдачи сверху!)</span>
+                    </div>
+                </div>
+                <div id="ordersContainer" class="grid grid-cols-3 gap-2">
+                    <!-- Карточки заказов генерируются динамически -->
+                </div>
+            </div>
+
+            <!-- ИГРОВОЙ ХОЛСТ (CANVAS) + ОВЕРЛЕИ (РЕКЛАМА, GAME OVER, СЕКРЕТ) -->
+            <div class="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-slate-100 rounded-2xl overflow-hidden shadow-inner border-2 border-slate-300 dark:border-slate-700">
+                <canvas id="gameCanvas"></canvas>
+
+                <!-- ОВЕРЛЕЙ ВОЗНАГРАЖДАЮЩЕЙ РЕКЛАМЫ (REWARDED ADS - 5 СЕКУНД) -->
+                <div id="adOverlay" class="hidden absolute inset-0 z-30 bg-black/95 flex flex-col items-center justify-center p-4 text-center">
+                    <!-- Смартфон-контейнер точно как на скриншоте 2 -->
+                    <div class="w-64 sm:w-72 bg-[#031210] border-2 border-slate-700 rounded-[28px] p-6 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                        <!-- Декоративные круги фона -->
+                        <div class="absolute inset-0 opacity-10 grid grid-cols-3 gap-4 p-4 pointer-events-none">
+                            <div class="w-10 h-10 rounded-full bg-teal-400"></div>
+                            <div class="w-10 h-10 rounded-full bg-teal-400"></div>
+                            <div class="w-10 h-10 rounded-full bg-teal-400"></div>
+                            <div class="w-10 h-10 rounded-full bg-teal-400"></div>
+                            <div class="w-10 h-10 rounded-full bg-teal-400"></div>
+                            <div class="w-10 h-10 rounded-full bg-teal-400"></div>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center">
+                            <div class="text-teal-400 font-black text-lg tracking-wider uppercase leading-tight">
+                                РЕКЛАМА<br>СПОНСОРА
+                            </div>
+                            <p class="text-slate-300 text-xs mt-2 mb-4">
+                                Пожалуйста, подождите...
+                            </p>
+
+                            <!-- Бирюзовый таймер 00:05 -->
+                            <div id="adTimerPill" class="bg-[#00d2be] text-slate-950 font-mono-code font-black text-2xl px-6 py-2.5 rounded-2xl shadow-lg mb-4">
+                                00:05
+                            </div>
+
+                            <!-- Кнопка Пропустить (Скоро) -->
+                            <button disabled class="bg-zinc-800/90 border border-zinc-600 text-zinc-400 text-xs font-semibold px-4 py-2 rounded-lg cursor-not-allowed">
+                                Пропустить (Скоро)
+                            </button>
+
+                            <div class="mt-4 text-[11px] text-teal-300/90 font-medium">
+                                🎁 Награда: +1000 💰, +500 очков, HP и Очки x2 (10 сек)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ОВЕРЛЕЙ GAME OVER (С СОХРАНЕНИЕМ РЕКОРДА В LOCALSTORAGE) -->
+                <div id="gameOverOverlay" class="hidden absolute inset-0 z-20 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center text-white">
+                    <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
+                        <div class="text-4xl mb-2">🍔💥</div>
+                        <h2 class="text-2xl font-black text-rose-400 uppercase tracking-wide">Смена Окончена (Game Over)</h2>
+                        <p id="gameOverReason" class="text-xs text-slate-300 mt-1 mb-4">
+                            Клиенты потеряли терпение или шеф устал!
+                        </p>
+
+                        <!-- Сравнение счета и сохраненного рекорда localStorage -->
+                        <div class="grid grid-cols-2 gap-3 bg-slate-800/90 p-3.5 rounded-xl border border-slate-700 mb-5">
+                            <div>
+                                <div class="text-[11px] text-slate-400 uppercase font-bold">Счет смены</div>
+                                <div id="finalScoreText" class="text-2xl font-black text-white font-mono-code">0</div>
+                            </div>
+                            <div class="border-l border-slate-700">
+                                <div class="text-[11px] text-teal-400 uppercase font-bold">Рекорд (localStorage)</div>
+                                <div id="finalRecordText" class="text-2xl font-black text-teal-300 font-mono-code">0</div>
+                                <div class="text-[10px] text-emerald-400">Остается навсегда! 💾</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-2.5 justify-center">
+                            <button id="restartGameBtn" class="flex-1 bg-teal-500 hover:bg-teal-400 text-slate-950 font-black py-3 px-4 rounded-xl shadow-lg transition active:scale-95">
+                                🔄 Новая смена
+                            </button>
+                            <button id="reviveAdBtn" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-xl shadow-lg transition active:scale-95">
+                                🎬 Воскреснуть (Реклама 5с)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ОВЕРЛЕЙ СЕКРЕТНОЙ ПАСХАЛКИ (ПИКСЕЛЬ-НЕВИДИМКА) -->
+                <div id="secretPixelModal" class="hidden absolute inset-0 z-40 bg-indigo-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white">
+                    <div class="max-w-sm w-full bg-slate-900 border-2 border-purple-500 rounded-2xl p-6 shadow-2xl">
+                        <div class="text-4xl mb-2">🕵️‍♂️✨</div>
+                        <div class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-1">Секрет разработчика найден!</div>
+                        <h3 class="text-2xl font-black text-white mb-2">«Здесь был Dmitry»</h3>
+                        <p class="text-xs text-slate-300 mb-4">
+                            Ты нашел секретный Пиксель-невидимку в углу экрана! Инди-студия <span class="text-teal-400 font-bold">Asro Games</span> дарит тебе секретный грант разработчика: <span class="text-amber-300 font-bold">+500 монет</span>!
+                        </p>
+                        <button id="closeSecretModalBtn" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition">
+                            Круто! Продолжить игру
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ПАНЕЛЬ УПРАВЛЕНИЯ И БЫСТРЫХ ДЕЙСТВИЙ ПОД ХОЛСТОМ -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                
+                <!-- Подсказка по управлению -->
+                <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <span class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded font-mono-code font-bold text-slate-800 dark:text-white">WASD / Стрелки</span>
+                    <span>— бегать по ресторану и собирать 🍔</span>
+                </div>
+
+                <!-- Мобильный D-Pad для сенсорных экранов и мыши -->
+                <div class="flex items-center gap-1.5 sm:hidden mx-auto">
+                    <button data-dir="left" class="dpad-btn w-12 h-11 bg-slate-200 dark:bg-slate-700 active:bg-teal-500 rounded-xl font-bold text-lg flex items-center justify-center">⬅️</button>
+                    <div class="flex flex-col gap-1.5">
+                        <button data-dir="up" class="dpad-btn w-12 h-11 bg-slate-200 dark:bg-slate-700 active:bg-teal-500 rounded-xl font-bold text-lg flex items-center justify-center">⬆️</button>
+                        <button data-dir="down" class="dpad-btn w-12 h-11 bg-slate-200 dark:bg-slate-700 active:bg-teal-500 rounded-xl font-bold text-lg flex items-center justify-center">⬇️</button>
+                    </div>
+                    <button data-dir="right" class="dpad-btn w-12 h-11 bg-slate-200 dark:bg-slate-700 active:bg-teal-500 rounded-xl font-bold text-lg flex items-center justify-center">➡️</button>
+                </div>
+
+                <!-- Кнопки управления сменой -->
+                <div class="flex items-center gap-2 ml-auto">
+                    <button id="watchAdMainBtn" class="btn-ad-pulse bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow transition active:scale-95 flex items-center gap-1.5">
+                        <span>🎬</span>
+                        <span>Реклама (+1000 💰 & Бонус)</span>
+                    </button>
+                    <button id="pauseToggleBtn" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs sm:text-sm px-3 py-2 rounded-xl transition">
+                        ⏸️ Пауза
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ПРАВАЯ КОЛОНКА: МАГАЗИН IAP, ЛАБОРАТОРИЯ ПАСХАЛОК И ЧЕК-ЛИСТ ИНВЕСТОРА (4 колонки) -->
+        <aside class="lg:col-span-4 flex flex-col gap-3">
+
+            <!-- 1. PREMIUM: МАГАЗИН (IN-APP PURCHASES) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-sm font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
+                        <span>🛒</span>
+                        <span>Premium: Магазин (IAP)</span>
+                    </h2>
+                    <span class="text-[11px] font-mono-code bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-md font-bold">
+                        If / Else + localStorage
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                    Покупка проверяет баланс монет, списывает стоимость и навсегда сохраняет предмет в <code class="font-mono-code text-teal-600 dark:text-teal-400">localStorage</code>.
+                </p>
+
+                <!-- Главный лот из блок-схемы: Неоновый меч -->
+                <div class="p-3 rounded-xl bg-gradient-to-r from-slate-900 to-indigo-950 text-white border border-teal-500/40 mb-2.5">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-400 flex items-center justify-center text-xl">
+                                ⚔️
+                            </div>
+                            <div>
+                                <div class="font-extrabold text-sm text-teal-300 flex items-center gap-1.5">
+                                    <span>Неоновый меч Шефа</span>
+                                    <span id="swordOwnedBadge" class="hidden text-[10px] bg-emerald-500 text-slate-950 px-1.5 py-0.2 rounded font-black">КУПЛЕНО</span>
+                                </div>
+                                <div class="text-[11px] text-slate-300">
+                                    Авто-шинковка угроз на кухне +25% к скорости и +50 💰 за заказ!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="buyNeonSwordBtn" class="mt-3 w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs py-2 px-3 rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5">
+                        <span>Купить «Неоновый меч» за 1000 💰</span>
+                    </button>
+                </div>
+
+                <!-- Дополнительный апгрейд ресторана -->
+                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">☕</span>
+                        <div>
+                            <div class="text-xs font-bold">Эспрессо-буст клиентам</div>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-300">Восстанавливает 100% терпения и +50 HP</div>
+                        </div>
+                    </div>
+                    <button id="buyCoffeeBoostBtn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs px-3 py-1.5 rounded-lg transition shrink-0">
+                        300 💰
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. ЛАБОРАТОРИЯ ПАСХАЛОК (EASTER EGGS) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-sm font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
+                        <span>🎁</span>
+                        <span>Лаборатория Пасхалок</span>
+                    </h2>
+                    <span id="easterEggCountBadge" class="text-xs font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md">
+                        0 / 3 найдено
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-xs text-slate-600 dark:text-slate-300 mb-3">
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-700/40">
+                        <span>🔑 <b>Именной чит-код:</b> набери <code class="font-mono-code font-bold text-purple-600 dark:text-purple-300">BOSS</code> или <code class="font-mono-code font-bold text-purple-600 dark:text-purple-300">DMITRY</code></span>
+                        <span id="eggStatusCode" class="text-slate-400">⏳</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-700/40">
+                        <span>🖱️ <b>Секретный клик:</b> 5 быстрых кликов по заголовку</span>
+                        <span id="eggStatusClick" class="text-slate-400">⏳</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-700/40">
+                        <span>👁️ <b>Пиксель-невидимка:</b> правый нижний угол экрана</span>
+                        <span id="eggStatusPixel" class="text-slate-400">⏳</span>
+                    </div>
+                </div>
+
+                <!-- Поле для ввода чит-кода (удобно с телефона или ПК, помимо глобального слушателя клавиатуры) -->
+                <div class="flex gap-1.5">
+                    <input id="cheatCodeInput" type="text" placeholder="Введи чит-код (BOSS / DMITRY)..." class="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs font-mono-code uppercase focus:outline-none focus:border-purple-500">
+                    <button id="submitCheatBtn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition">
+                        Ввод
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. ЧЕК-ЛИСТ ИНВЕСТОРА (ТЕСТ СОСЕДА ИЗ СКРИНШОТА 5) -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h2 class="text-sm font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
+                        <span>✅</span>
+                        <span>7. Чек-лист Инвестора</span>
+                    </h2>
+                    <span class="text-[10px] text-slate-400 uppercase font-semibold">Авто-проверка</span>
+                </div>
+
+                <ul class="space-y-2 text-xs">
+                    <li class="flex items-start gap-2">
+                        <input id="check1" type="checkbox" checked class="mt-0.5 accent-teal-500 w-4 h-4 rounded cursor-pointer">
+                        <label for="check1" class="font-medium text-slate-700 dark:text-slate-200">
+                            Базовая механика работает, герой не застревает в полу.
+                        </label>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input id="check2" type="checkbox" class="mt-0.5 accent-teal-500 w-4 h-4 rounded cursor-pointer">
+                        <label for="check2" class="font-medium text-slate-700 dark:text-slate-200">
+                            Кнопка «Реклама» ставит игру на паузу ровно на 5 секунд.
+                        </label>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input id="check3" type="checkbox" class="mt-0.5 accent-teal-500 w-4 h-4 rounded cursor-pointer">
+                        <label for="check3" class="font-medium text-slate-700 dark:text-slate-200">
+                            После фейковой рекламы выдается обещанный бонус.
+                        </label>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input id="check4" type="checkbox" class="mt-0.5 accent-teal-500 w-4 h-4 rounded cursor-pointer">
+                        <label for="check4" class="font-medium text-slate-700 dark:text-slate-200">
+                            После Game Over старый рекорд сохраняется на экране (<code class="font-mono-code">localStorage</code>).
+                        </label>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input id="check5" type="checkbox" class="mt-0.5 accent-teal-500 w-4 h-4 rounded cursor-pointer">
+                        <label for="check5" class="font-medium text-slate-700 dark:text-slate-200">
+                            Я смог найти секретную Пасхалку!
+                        </label>
+                    </li>
+                </ul>
+
+                <!-- Питч-фраза для инвестора -->
+                <div class="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400">
+                    <span class="font-bold text-amber-600 dark:text-amber-400">📢 Питч для инвестора:</span>
+                    «Сможешь обслужить ресторан в час-пик, собрать бургеры и вооружиться Неоновым мечом? Заходи в игру от <b>Asro Games</b>!»
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- ПАСХАЛКА №3: ПИКСЕЛЬ-НЕВИДИМКА (opacity: 0 в правом нижнем углу экрана) -->
+    <button
+        id="invisiblePixelBtn"
+        style="opacity: 0;"
+        class="fixed bottom-1 right-1 w-8 h-8 z-50 cursor-pointer"
+        aria-label="Secret Pixel Easter Egg"
+        title="Секретный пиксель Dmitry">
+        .
+    </button>
+
+    <script>
+        /**
+         * ============================================================================
+         * ИГРА ДЛЯ ХАКАТОНА: «МЕНЕДЖЕР РЕСТОРАНА» (ЗАКАЗ №9)
+         * Разработчик: Dmitry | Инди-студия: Asro Games
+         * Визуальный стиль: Ресторан, минимализм
+         * ============================================================================
+         */
+
+        // --- ЗВУКОВОЙ ДВИЖОК (Web Audio API без внешних файлов) ---
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type = 'sine', duration = 0.12, vol = 0.12) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {
+                    // Игнорируем ограничения автовоспроизведения
+                }
+            }
+
+            pickupBurger() {
+                this.playTone(520, 'triangle', 0.09, 0.14);
+                setTimeout(() => this.playTone(780, 'triangle', 0.12, 0.14), 60);
+            }
+
+            serveOrder() {
+                this.playTone(587.33, 'sine', 0.1, 0.15);
+                setTimeout(() => this.playTone(880, 'sine', 0.18, 0.16), 80);
+            }
+
+            hitHazard() {
+                this.playTone(160, 'sawtooth', 0.22, 0.15);
+            }
+
+            swordSlice() {
+                this.playTone(920, 'square', 0.07, 0.09);
+                setTimeout(() => this.playTone(1240, 'sine', 0.09, 0.1), 45);
+            }
+
+            secretFound() {
+                [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+                    setTimeout(() => this.playTone(f, 'triangle', 0.16, 0.15), idx * 90);
+                });
+            }
+        }
+
+        const sfx = new SoundEffects();
+
+        // --- СИСТЕМА УВЕДОМЛЕНИЙ ВМЕСТО ALERT() ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-slate-900 text-white border-teal-400',
+                success: 'bg-emerald-950 text-emerald-200 border-emerald-400',
+                warning: 'bg-amber-950 text-amber-200 border-amber-400',
+                secret: 'bg-purple-950 text-purple-200 border-purple-400'
+            };
+            toast.className = `toast-anim px-4 py-2.5 rounded-xl border-l-4 shadow-xl text-xs sm:text-sm font-bold flex items-center gap-2 ${colors[type] || colors.info}`;
+            toast.innerHTML = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, 3200);
+        }
+
+        // --- РАБОТА С LOCALSTORAGE (УДЕРЖАНИЕ И МАГАЗИН) ---
+        const STORAGE_KEYS = {
+            RECORD: 'record', // Точный ключ из теории на скриншоте 1: .setItem('record', 100)
+            GOLD: 'asro_restaurant_gold',
+            NEON_SWORD: 'asro_neon_sword_unlocked'
+        };
+
+        function getSavedRecord() {
+            try {
+                return parseInt(localStorage.getItem(STORAGE_KEYS.RECORD) || '0', 10) || 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function saveRecord(newScore) {
+            const currentRecord = getSavedRecord();
+            if (newScore > currentRecord) {
+                try {
+                    localStorage.setItem(STORAGE_KEYS.RECORD, String(newScore));
+                } catch (e) {}
+                return newScore;
+            }
+            return currentRecord;
+        }
+
+        function getSavedGold() {
+            try {
+                const val = localStorage.getItem(STORAGE_KEYS.GOLD);
+                return val !== null ? parseInt(val, 10) : 250; // Стартовый капитал 250 монет
+            } catch (e) {
+                return 250;
+            }
+        }
+
+        function saveGold(goldAmount) {
+            try {
+                localStorage.setItem(STORAGE_KEYS.GOLD, String(goldAmount));
+            } catch (e) {}
+        }
+
+        function isSwordUnlockedInStorage() {
+            try {
+                return localStorage.getItem(STORAGE_KEYS.NEON_SWORD) === 'true';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function saveSwordUnlockInStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.NEON_SWORD, 'true');
+            } catch (e) {}
+        }
+
+        // --- СОСТОЯНИЕ ИГРЫ ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Логические размеры зала ресторана (масштабируются под любой экран)
+        const WORLD_W = 800;
+        const WORLD_H = 480;
+
+        let isPaused = false;
+        let isAdPlaying = false;
+        let isGameOver = false;
+        let currentThemeIndex = 0; // 0: Минимализм (Светлый ресторан), 1: Кибер-Неон, 2: Ретро-Закат
+
+        const player = {
+            x: 400,
+            y: 260,
+            radius: 20,
+            baseSpeed: 255,
+            hp: 100,
+            maxHp: 100,
+            score: 0,
+            record: getSavedRecord(),
+            gold: getSavedGold(),
+            carriedBurgers: 0,
+            maxCarry: 5,
+            hasNeonSword: isSwordUnlockedInStorage(),
+            swordAngle: 0,
+            doubleMultiplierTimer: 0,
+            invulnerableTimer: 0,
+            facingX: 1,
+            facingY: 0
+        };
+
+        // Столы-препятствия в зале ресторана (с мягким скольжением без застревания!)
+        const obstacles = [
+            { x: 160, y: 185, w: 110, h: 64, label: 'Стол 1' },
+            { x: 530, y: 185, w: 110, h: 64, label: 'Стол 2' },
+            { x: 160, y: 330, w: 110, h: 64, label: 'Стол 3' },
+            { x: 530, y: 330, w: 110, h: 64, label: 'Стол 4' }
+        ];
+
+        // Зона выдачи заказов сверху
+        const servingZone = {
+            x: 250,
+            y: 18,
+            w: 300,
+            h: 58
+        };
+
+        let burgersOnFloor = [];
+        let hazards = [];
+        let floatingParticles = [];
+        let customerOrders = [];
+        let burgerSpawnTimer = 0;
+        let hazardSpawnTimer = 0;
+
+        // Память найденных пасхалок
+        const easterEggsFound = {
+            code: false,
+            click: false,
+            pixel: false
+        };
+
+        // --- ИНИЦИАЛИЗАЦИЯ ЗАКАЗОВ КЛИЕНТОВ С ТАЙМЕРАМИ ТЕРПЕНИЯ ---
+        const CUSTOMER_AVATARS = ['👩‍💼', '🧑‍💻', '👨‍🎨', '🕵️‍♀️', '🦸‍♂️', '🧑‍🚀'];
+        const ORDER_NAMES = ['Классик Бургер', 'Двойной Чиз', 'Гранд Меню', 'Комбо Шефа'];
+
+        function createCustomerOrder(slotIndex) {
+            const needed = Math.floor(Math.random() * 2) + 1; // 1 или 2 бургера
+            const maxPatience = 22 + Math.floor(Math.random() * 10); // 22-32 секунды терпения
+            return {
+                id: Date.now() + Math.random(),
+                slot: slotIndex,
+                avatar: CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)],
+                title: ORDER_NAMES[Math.floor(Math.random() * ORDER_NAMES.length)],
+                neededBurgers: needed,
+                deliveredBurgers: 0,
+                patience: maxPatience,
+                maxPatience: maxPatience,
+                rewardGold: needed * 85,
+                rewardScore: needed * 120
+            };
+        }
+
+        function initCustomerOrders() {
+            customerOrders = [
+                createCustomerOrder(0),
+                createCustomerOrder(1),
+                createCustomerOrder(2)
+            ];
+            renderOrdersUI();
+        }
+
+        // Отрисовка карточек клиентов и полосок их терпения
+        function renderOrdersUI() {
+            const container = document.getElementById('ordersContainer');
+            container.innerHTML = customerOrders.map(order => {
+                const pct = Math.max(0, Math.min(100, (order.patience / order.maxPatience) * 100));
+                let barColor = 'bg-emerald-500';
+                if (pct < 55) barColor = 'bg-amber-500';
+                if (pct < 25) barColor = 'bg-rose-500 animate-pulse';
+
+                const burgersIcons = '🍔'.repeat(order.neededBurgers - order.deliveredBurgers) + '✅'.repeat(order.deliveredBurgers);
+
+                return `
+                    <div class="bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-xl p-2 flex flex-col justify-between">
+                        <div class="flex items-center justify-between gap-1">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="text-lg sm:text-xl shrink-0">${order.avatar}</span>
+                                <span class="text-[11px] sm:text-xs font-bold truncate">${order.title}</span>
+                            </div>
+                            <span class="text-xs font-extrabold whitespace-nowrap">${burgersIcons}</span>
+                        </div>
+                        <div class="mt-1.5">
+                            <div class="flex justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">
+                                <span>Терпение</span>
+                                <span>${Math.ceil(order.patience)}с</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="${barColor} h-full transition-all duration-150" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- СПАВН БУРГЕРОВ И ОПАСНОСТЕЙ В РЕСТОРАНЕ ---
+        function isPointInsideObstacle(x, y, pad = 28) {
+            if (y < servingZone.y + servingZone.h + pad) return true;
+            for (const obs of obstacles) {
+                if (
+                    x > obs.x - pad &&
+                    x < obs.x + obs.w + pad &&
+                    y > obs.y - pad &&
+                    y < obs.y + obs.h + pad
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function spawnBurger() {
+            if (burgersOnFloor.length >= 7) return;
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const x = 55 + Math.random() * (WORLD_W - 110);
+                const y = 110 + Math.random() * (WORLD_H - 160);
+                if (!isPointInsideObstacle(x, y, 30)) {
+                    const isGolden = Math.random() < 0.2;
+                    burgersOnFloor.push({
+                        x,
+                        y,
+                        radius: 16,
+                        isGolden,
+                        bobOffset: Math.random() * Math.PI * 2
+                    });
+                    break;
+                }
+            }
+        }
+
+        function spawnHazard() {
+            if (hazards.length >= 3) return;
+            const side = Math.random() < 0.5 ? 'left' : 'right';
+            const x = side === 'left' ? 35 : WORLD_W - 35;
+            const y = 120 + Math.random() * (WORLD_H - 170);
+            const speed = 75 + Math.random() * 55;
+            const angle = side === 'left' ? (Math.random() * 0.6 - 0.3) : (Math.PI + Math.random() * 0.6 - 0.3);
+
+            hazards.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: 16,
+                icon: Math.random() < 0.5 ? '🔥' : '🐀',
+                label: 'Опасность кухни'
+            });
+        }
+
+        function addFloatingText(x, y, text, color = '#14b8a6') {
+            floatingParticles.push({
+                x,
+                y,
+                text,
+                color,
+                life: 1.0
+            });
+        }
+
+        // --- ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ---
+        function updateHUD() {
+            document.getElementById('scoreDisplay').textContent = player.score;
+            document.getElementById('recordDisplay').textContent = player.record;
+            document.getElementById('goldDisplay').textContent = player.gold;
+            document.getElementById('hpDisplay').textContent = Math.max(0, Math.ceil(player.hp));
+            document.getElementById('carriedBurgersDisplay').textContent = `${player.carriedBurgers}/${player.maxCarry}`;
+
+            const weaponEl = document.getElementById('weaponStatusDisplay');
+            const swordBtn = document.getElementById('buyNeonSwordBtn');
+            const swordBadge = document.getElementById('swordOwnedBadge');
+
+            if (player.hasNeonSword) {
+                weaponEl.textContent = 'Неоновый меч ⚔️';
+                weaponEl.className = 'text-xs font-extrabold text-teal-500 truncate';
+                swordBtn.textContent = '✅ Неоновый меч разблокирован (localStorage)';
+                swordBtn.disabled = true;
+                swordBtn.className = 'mt-3 w-full bg-emerald-600/40 border border-emerald-400 text-emerald-200 font-bold text-xs py-2 px-3 rounded-lg cursor-default';
+                swordBadge.classList.remove('hidden');
+            } else {
+                weaponEl.textContent = 'Руки шефа 🧤';
+            }
+
+            const multBadge = document.getElementById('multiplierBadge');
+            if (player.doubleMultiplierTimer > 0) {
+                multBadge.classList.remove('hidden');
+                multBadge.textContent = `x2 (${Math.ceil(player.doubleMultiplierTimer)}с)`;
+            } else {
+                multBadge.classList.add('hidden');
+            }
+        }
+
+        // --- УПРАВЛЕНИЕ КЛАВИАТУРОЙ И СЕНСОРНЫМИ КНОПКАМИ ---
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+
+        let typedCheatBuffer = '';
+
+        window.addEventListener('keydown', (e) => {
+            // Игнорируем управление, если фокус в текстовом поле
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+            const code = e.code;
+            if (code === 'KeyW' || code === 'ArrowUp') { keys.up = true; e.preventDefault(); }
+            if (code === 'KeyS' || code === 'ArrowDown') { keys.down = true; e.preventDefault(); }
+            if (code === 'KeyA' || code === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
+            if (code === 'KeyD' || code === 'ArrowRight') { keys.right = true; e.preventDefault(); }
+
+            // ПАСХАЛКА №1: Именной чит-код (Слушатель клавиатуры на BOSS или DMITRY)
+            if (e.key && e.key.length === 1) {
+                typedCheatBuffer = (typedCheatBuffer + e.key.toUpperCase()).slice(-10);
+                if (typedCheatBuffer.endsWith('BOSS') || typedCheatBuffer.endsWith('DMITRY')) {
+                    activateCheatCodeEasterEgg(typedCheatBuffer.endsWith('DMITRY') ? 'DMITRY' : 'BOSS');
+                    typedCheatBuffer = '';
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const code = e.code;
+            if (code === 'KeyW' || code === 'ArrowUp') keys.up = false;
+            if (code === 'KeyS' || code === 'ArrowDown') keys.down = false;
+            if (code === 'KeyA' || code === 'ArrowLeft') keys.left = false;
+            if (code === 'KeyD' || code === 'ArrowRight') keys.right = false;
+        });
+
+        // Сенсорные кнопки D-pad для мобильных устройств
+        document.querySelectorAll('.dpad-btn').forEach(btn => {
+            const dir = btn.getAttribute('data-dir');
+            const start = (ev) => { ev.preventDefault(); keys[dir] = true; };
+            const end = (ev) => { ev.preventDefault(); keys[dir] = false; };
+            btn.addEventListener('touchstart', start, { passive: false });
+            btn.addEventListener('touchend', end, { passive: false });
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+        });
+
+        // Также поддерживаем клик/касание прямо по холсту, чтобы герой бежал к точке касания
+        let pointerTarget = null;
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            pointerTarget = {
+                x: ((e.clientX - rect.left) / rect.width) * WORLD_W,
+                y: ((e.clientY - rect.top) / rect.height) * WORLD_H
+            };
+        });
+        canvas.addEventListener('pointermove', (e) => {
+            if (e.buttons > 0 && pointerTarget) {
+                const rect = canvas.getBoundingClientRect();
+                pointerTarget = {
+                    x: ((e.clientX - rect.left) / rect.width) * WORLD_W,
+                    y: ((e.clientY - rect.top) / rect.height) * WORLD_H
+                };
+            }
+        });
+        window.addEventListener('pointerup', () => {
+            pointerTarget = null;
+        });
+
+        // --- ФИЗИКА И КОЛЛИЗИИ (ГЕРОЙ НЕ ЗАСТРЕВАЕТ В ПОЛУ ИЛИ СТОЛАХ) ---
+        function resolveCircleRectCollision(circle, rect) {
+            const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
+            const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.h));
+            const dx = circle.x - closestX;
+            const dy = circle.y - closestY;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < circle.radius * circle.radius) {
+                const dist = Math.sqrt(distSq) || 0.001;
+                const overlap = circle.radius - dist;
+                circle.x += (dx / dist) * overlap;
+                circle.y += (dy / dist) * overlap;
+            }
+        }
+
+        // --- БИЗНЕС-МОДЕЛЬ: ВОЗНАГРАЖДАЮЩАЯ РЕКЛАМА (5 СЕКУНД ПАУЗЫ) ---
+        let adIntervalId = null;
+
+        function triggerRewardedAd(fromGameOver = false) {
+            if (isAdPlaying) return;
+
+            // 1. Нажатие кнопки "Реклама"
+            // 2. isPaused = true; (Враги замерли)
+            isPaused = true;
+            isAdPlaying = true;
+            document.getElementById('check2').checked = true;
+
+            // 3. Показ черного div поверх игры
+            const adOverlay = document.getElementById('adOverlay');
+            const timerPill = document.getElementById('adTimerPill');
+            adOverlay.classList.remove('hidden');
+
+            let secondsLeft = 5;
+            timerPill.textContent = `00:0${secondsLeft}`;
+
+            if (adIntervalId) clearInterval(adIntervalId);
+
+            // 4. Таймер считает 5 секунд
+            adIntervalId = setInterval(() => {
+                secondsLeft -= 1;
+                timerPill.textContent = `00:0${Math.max(0, secondsLeft)}`;
+
+                if (secondsLeft <= 0) {
+                    clearInterval(adIntervalId);
+                    adIntervalId = null;
+
+                    // 5. isPaused = false;
+                    adOverlay.classList.add('hidden');
+                    isAdPlaying = false;
+                    isPaused = false;
+
+                    // Если вызывали из экрана Game Over — воскрешаем игрока
+                    if (fromGameOver || isGameOver) {
+                        isGameOver = false;
+                        document.getElementById('gameOverOverlay').classList.add('hidden');
+                    }
+
+                    // 6. player.gold += 1000; (Бонус!)
+                    player.gold += 1000;
+                    saveGold(player.gold);
+
+                    player.score += 500;
+                    player.record = saveRecord(player.score);
+                    player.hp = Math.max(player.hp, player.maxHp);
+                    player.doubleMultiplierTimer = 10; // Очки х2 на 10 сек
+
+                    // Восстанавливаем терпение всем клиентам
+                    customerOrders.forEach(o => {
+                        o.patience = o.maxPatience;
+                    });
+
+                    document.getElementById('check3').checked = true;
+                    sfx.secretFound();
+                    updateHUD();
+                    renderOrdersUI();
+                    showToast('🎁 Награда за рекламу: +1000 монет, +500 очков, полное HP и x2 Очки на 10 сек!', 'success');
+                }
+            }, 1000);
+        }
+
+        document.getElementById('watchAdMainBtn').addEventListener('click', () => triggerRewardedAd(false));
+        document.getElementById('reviveAdBtn').addEventListener('click', () => triggerRewardedAd(true));
+
+        // --- PREMIUM МАГАЗИН (IN-APP PURCHASES) ПО БЛОК-СХЕМЕ ---
+        document.getElementById('buyNeonSwordBtn').addEventListener('click', () => {
+            if (player.hasNeonSword) {
+                showToast('⚔️ Неоновый меч уже разблокирован!', 'info');
+                return;
+            }
+
+            // Проверка условий (If/Else) из скриншота 2:
+            // 1. У тебя есть 1000 монет?
+            if (player.gold >= 1000) {
+                // 2. Списать 1000 монет с баланса
+                player.gold -= 1000;
+                saveGold(player.gold);
+
+                // 3. Сказать игре: "Оружие разблокировано"
+                player.hasNeonSword = true;
+
+                // 4. Сохранить факт покупки в localStorage
+                saveSwordUnlockInStorage();
+
+                sfx.secretFound();
+                updateHUD();
+                showToast('⚔️ Покупка успешна! «Неоновый меч» разблокирован и сохранен в localStorage!', 'success');
+            } else {
+                const need = 1000 - player.gold;
+                showToast(`⚠️ Недостаточно монет! Нужно еще ${need} 💰 (Посмотри рекламу за +1000 💰!)`, 'warning');
+            }
+        });
+
+        document.getElementById('buyCoffeeBoostBtn').addEventListener('click', () => {
+            if (player.gold >= 300) {
+                player.gold -= 300;
+                saveGold(player.gold);
+                player.hp = Math.min(player.maxHp, player.hp + 50);
+                customerOrders.forEach(o => { o.patience = o.maxPatience; });
+                sfx.serveOrder();
+                updateHUD();
+                renderOrdersUI();
+                showToast('☕ Эспрессо подан! Терпение клиентов 100% и +50 HP шефу!', 'success');
+            } else {
+                showToast('⚠️ Нужно 300 монет для покупки Эспрессо-буста!', 'warning');
+            }
+        });
+
+        // --- ЛАБОРАТОРИЯ ПАСХАЛОК (3 СЕКРЕТА РАЗРАБОТЧИКА) ---
+        function updateEasterEggProgress() {
+            const count = Object.values(easterEggsFound).filter(Boolean).length;
+            document.getElementById('easterEggCountBadge').textContent = `${count} / 3 найдено`;
+            if (count > 0) {
+                document.getElementById('check5').checked = true;
+            }
+        }
+
+        // Пасхалка 1: Именной чит-код BOSS или DMITRY -> выдает 9999 HP
+        function activateCheatCodeEasterEgg(word) {
+            player.hp = 9999;
+            player.maxHp = 9999;
+            if (!easterEggsFound.code) {
+                easterEggsFound.code = true;
+                player.gold += 500;
+                saveGold(player.gold);
+                document.getElementById('eggStatusCode').textContent = '✅';
+                updateEasterEggProgress();
+            }
+            sfx.secretFound();
+            updateHUD();
+            showToast(`🔑 Чит-код «${word}» активирован! Выдано 9999 HP и бонус от Dmitry!`, 'secret');
+        }
+
+        document.getElementById('submitCheatBtn').addEventListener('click', () => {
+            const input = document.getElementById('cheatCodeInput');
+            const val = input.value.trim().toUpperCase();
+            if (val === 'BOSS' || val === 'DMITRY' || val === 'ASRO') {
+                activateCheatCodeEasterEgg(val);
+                input.value = '';
+            } else {
+                showToast('🤔 Неизвестный код. Попробуй ввести BOSS или DMITRY!', 'warning');
+            }
+        });
+
+        document.getElementById('cheatCodeInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('submitCheatBtn').click();
+            }
+        });
+
+        // Пасхалка 2: Секретный клик (5 быстрых кликов по заголовку меняют фон/тему)
+        let titleClickTimestamps = [];
+        document.getElementById('secretTitleTrigger').addEventListener('click', () => {
+            const now = Date.now();
+            titleClickTimestamps.push(now);
+            titleClickTimestamps = titleClickTimestamps.filter(t => now - t < 2200);
+
+            if (titleClickTimestamps.length >= 5) {
+                titleClickTimestamps = [];
+                currentThemeIndex = (currentThemeIndex + 1) % 3;
+                document.body.classList.remove('theme-neon', 'theme-sunset');
+
+                let themeName = 'Светлый Минимализм';
+                if (currentThemeIndex === 1) {
+                    document.body.classList.add('theme-neon');
+                    themeName = 'Кибер-Неон Ресторан';
+                } else if (currentThemeIndex === 2) {
+                    document.body.classList.add('theme-sunset');
+                    themeName = 'Ретро Лаунж';
+                }
+
+                if (!easterEggsFound.click) {
+                    easterEggsFound.click = true;
+                    document.getElementById('eggStatusClick').textContent = '✅';
+                    updateEasterEggProgress();
+                }
+                sfx.secretFound();
+                showToast(`🖱️ Пасхалка «5 кликов»! Тема изменена: ${themeName}`, 'secret');
+            }
+        });
+
+        // Пасхалка 3: Пиксель-невидимка в углу экрана -> Экран «Здесь был Dmitry»
+        document.getElementById('invisiblePixelBtn').addEventListener('click', () => {
+            isPaused = true;
+            if (!easterEggsFound.pixel) {
+                easterEggsFound.pixel = true;
+                player.gold += 500;
+                saveGold(player.gold);
+                document.getElementById('eggStatusPixel').textContent = '✅';
+                updateEasterEggProgress();
+                updateHUD();
+            }
+            sfx.secretFound();
+            document.getElementById('secretPixelModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closeSecretModalBtn').addEventListener('click', () => {
+            document.getElementById('secretPixelModal').classList.add('hidden');
+            if (!isAdPlaying && !isGameOver) {
+                isPaused = false;
+            }
+        });
+
+        // Кнопки паузы и звука
+        document.getElementById('pauseToggleBtn').addEventListener('click', () => {
+            if (isAdPlaying || isGameOver) return;
+            isPaused = !isPaused;
+            document.getElementById('pauseToggleBtn').textContent = isPaused ? '▶️ Продолжить' : '⏸️ Пауза';
+        });
+
+        document.getElementById('soundToggleBtn').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('soundToggleBtn').textContent = sfx.enabled ? '🔊 Звук' : '🔇 Без звука';
+        });
+
+        // --- GAME OVER И ПЕРЕЗАПУСК С СОХРАНЕНИЕМ РЕКОРДА ---
+        function triggerGameOver(reasonText) {
+            isGameOver = true;
+            isPaused = true;
+            player.record = saveRecord(player.score);
+            updateHUD();
+
+            document.getElementById('gameOverReason').textContent = reasonText;
+            document.getElementById('finalScoreText').textContent = player.score;
+            document.getElementById('finalRecordText').textContent = player.record;
+            document.getElementById('gameOverOverlay').classList.remove('hidden');
+            document.getElementById('check4').checked = true;
+        }
+
+        function resetGameSession() {
+            player.x = 400;
+            player.y = 260;
+            player.hp = player.maxHp === 9999 ? 9999 : 100;
+            player.score = 0;
+            player.carriedBurgers = 0;
+            player.doubleMultiplierTimer = 0;
+            player.record = getSavedRecord();
+
+            burgersOnFloor = [];
+            hazards = [];
+            floatingParticles = [];
+            for (let i = 0; i < 4; i++) spawnBurger();
+            initCustomerOrders();
+
+            isGameOver = false;
+            isPaused = false;
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            document.getElementById('pauseToggleBtn').textContent = '⏸️ Пауза';
+            updateHUD();
+        }
+
+        document.getElementById('restartGameBtn').addEventListener('click', resetGameSession);
+
+        // --- ОСНОВНОЙ ИГРОВОЙ ЦИКЛ (UPDATE & RENDER) ---
+        let lastFrameTime = performance.now();
+        let uiPatienceRefreshAccumulator = 0;
+
+        function updateGame(dt) {
+            if (isPaused || isAdPlaying || isGameOver) return;
+
+            // Таймер бонуса x2
+            if (player.doubleMultiplierTimer > 0) {
+                player.doubleMultiplierTimer = Math.max(0, player.doubleMultiplierTimer - dt);
+            }
+            if (player.invulnerableTimer > 0) {
+                player.invulnerableTimer = Math.max(0, player.invulnerableTimer - dt);
+            }
+
+            // 1. Перемещение главного героя (Шефа)
+            let moveX = 0;
+            let moveY = 0;
+            if (keys.left) moveX -= 1;
+            if (keys.right) moveX += 1;
+            if (keys.up) moveY -= 1;
+            if (keys.down) moveY += 1;
+
+            // Если управляли касанием/мышкой по холсту
+            if (moveX === 0 && moveY === 0 && pointerTarget) {
+                const dx = pointerTarget.x - player.x;
+                const dy = pointerTarget.y - player.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 8) {
+                    moveX = dx / dist;
+                    moveY = dy / dist;
+                }
+            } else if (moveX !== 0 || moveY !== 0) {
+                const len = Math.hypot(moveX, moveY);
+                moveX /= len;
+                moveY /= len;
+            }
+
+            if (moveX !== 0 || moveY !== 0) {
+                player.facingX = moveX;
+                player.facingY = moveY;
+            }
+
+            const speedMultiplier = player.hasNeonSword ? 1.25 : 1.0;
+            player.x += moveX * player.baseSpeed * speedMultiplier * dt;
+            player.y += moveY * player.baseSpeed * speedMultiplier * dt;
+
+            // Жесткие границы стен ресторана (герой никогда не выпадает за пределы и не застревает)
+            const wallMargin = player.radius + 10;
+            player.x = Math.max(wallMargin, Math.min(WORLD_W - wallMargin, player.x));
+            player.y = Math.max(wallMargin + 30, Math.min(WORLD_H - wallMargin, player.y));
+
+            // Мягкое выталкивание из столов
+            for (const obs of obstacles) {
+                resolveCircleRectCollision(player, obs);
+            }
+
+            // Вращение Неонового меча вокруг шефа
+            if (player.hasNeonSword) {
+                player.swordAngle += dt * 7.5;
+            }
+
+            // 2. Сбор бургеров на локации
+            for (let i = burgersOnFloor.length - 1; i >= 0; i--) {
+                const b = burgersOnFloor[i];
+                const dist = Math.hypot(player.x - b.x, player.y - b.y);
+                if (dist < player.radius + b.radius + 4) {
+                    if (player.carriedBurgers < player.maxCarry) {
+                        player.carriedBurgers += 1;
+                        const mult = player.doubleMultiplierTimer > 0 ? 2 : 1;
+                        const pts = (b.isGolden ? 50 : 20) * mult;
+                        const coins = (b.isGolden ? 35 : 10) * mult;
+                        player.score += pts;
+                        player.gold += coins;
+                        player.record = saveRecord(player.score);
+                        saveGold(player.gold);
+
+                        sfx.pickupBurger();
+                        addFloatingText(b.x, b.y - 10, `+${pts} ⭐ (+${coins}💰)`, b.isGolden ? '#f59e0b' : '#14b8a6');
+                        burgersOnFloor.splice(i, 1);
+                        updateHUD();
+                    } else {
+                        addFloatingText(player.x, player.y - 24, 'Руки полны! Неси к стойке ⬆️', '#f43f5e');
+                    }
+                }
+            }
+
+            // 3. Подача бургеров клиентам у стойки выдачи
+            const inServingZone =
+                player.x > servingZone.x - 10 &&
+                player.x < servingZone.x + servingZone.w + 10 &&
+                player.y < servingZone.y + servingZone.h + player.radius + 12;
+
+            if (inServingZone && player.carriedBurgers > 0) {
+                // Ищем заказ с наименьшим запасом терпения
+                const sortedOrders = [...customerOrders].sort((a, b) => a.patience - b.patience);
+                const targetOrder = sortedOrders[0];
+
+                if (targetOrder) {
+                    while (player.carriedBurgers > 0 && targetOrder.deliveredBurgers < targetOrder.neededBurgers) {
+                        player.carriedBurgers -= 1;
+                        targetOrder.deliveredBurgers += 1;
+                    }
+
+                    if (targetOrder.deliveredBurgers >= targetOrder.neededBurgers) {
+                        const mult = player.doubleMultiplierTimer > 0 ? 2 : 1;
+                        const swordBonusGold = player.hasNeonSword ? 50 : 0;
+                        const totalGold = (targetOrder.rewardGold + swordBonusGold) * mult;
+                        const totalScore = targetOrder.rewardScore * mult;
+
+                        player.gold += totalGold;
+                        player.score += totalScore;
+                        player.record = saveRecord(player.score);
+                        saveGold(player.gold);
+
+                        sfx.serveOrder();
+                        addFloatingText(player.x, servingZone.y + 50, `Заказ подан! +${totalScore}⭐ +${totalGold}💰`, '#10b981');
+
+                        // Создаем новый заказ на этом месте
+                        const idx = customerOrders.findIndex(o => o.id === targetOrder.id);
+                        if (idx !== -1) {
+                            customerOrders[idx] = createCustomerOrder(idx);
+                        }
+                    } else {
+                        sfx.pickupBurger();
+                        addFloatingText(player.x, servingZone.y + 50, 'Часть заказа подана! 🍔', '#38bdf8');
+                    }
+                    updateHUD();
+                    renderOrdersUI();
+                }
+            }
+
+            // 4. Таймеры терпения клиентов
+            for (let i = 0; i < customerOrders.length; i++) {
+                const order = customerOrders[i];
+                order.patience -= dt;
+                if (order.patience <= 0) {
+                    // Клиент ушел недовольным
+                    player.hp -= 25;
+                    sfx.hitHazard();
+                    addFloatingText(WORLD_W / 2, 75, `${order.avatar} Клиент не дождался! -25 HP`, '#f43f5e');
+                    customerOrders[i] = createCustomerOrder(i);
+                    updateHUD();
+                    renderOrdersUI();
+
+                    if (player.hp <= 0) {
+                        triggerGameOver('Клиенты потеряли терпение! Репутация ресторана упала до 0.');
+                        return;
+                    }
+                }
+            }
+
+            uiPatienceRefreshAccumulator += dt;
+            if (uiPatienceRefreshAccumulator >= 0.25) {
+                uiPatienceRefreshAccumulator = 0;
+                renderOrdersUI();
+            }
+
+            // 5. Движение опасностей кухни и проверка Неонового меча
+            for (let i = hazards.length - 1; i >= 0; i--) {
+                const h = hazards[i];
+                h.x += h.vx * dt;
+                h.y += h.vy * dt;
+
+                // Отскок от стен
+                if (h.x < 30 || h.x > WORLD_W - 30) h.vx *= -1;
+                if (h.y < 95 || h.y > WORLD_H - 30) h.vy *= -1;
+
+                const distToPlayer = Math.hypot(player.x - h.x, player.y - h.y);
+
+                // Если куплен Неоновый меч — он уничтожает опасность на подлете и дает монеты!
+                if (player.hasNeonSword && distToPlayer < player.radius + h.radius + 32) {
+                    sfx.swordSlice();
+                    player.score += 40;
+                    player.gold += 25;
+                    player.record = saveRecord(player.score);
+                    saveGold(player.gold);
+                    addFloatingText(h.x, h.y, '⚔️ Шинковка мечом! +25💰', '#2dd4bf');
+                    hazards.splice(i, 1);
+                    updateHUD();
+                    continue;
+                }
+
+                // Обычное столкновение с опасностью
+                if (distToPlayer < player.radius + h.radius - 2 && player.invulnerableTimer <= 0) {
+                    player.hp -= 20;
+                    player.invulnerableTimer = 1.2;
+                    sfx.hitHazard();
+                    addFloatingText(player.x, player.y - 20, 'Ай! Опасность кухни -20 HP', '#f43f5e');
+                    hazards.splice(i, 1);
+                    updateHUD();
+
+                    if (player.hp <= 0) {
+                        triggerGameOver('Шеф-повар пострадал от опасностей на кухне!');
+                        return;
+                    }
+                }
+            }
+
+            // 6. Спавнеры
+            burgerSpawnTimer += dt;
+            if (burgerSpawnTimer >= 1.8) {
+                burgerSpawnTimer = 0;
+                spawnBurger();
+            }
+
+            hazardSpawnTimer += dt;
+            if (hazardSpawnTimer >= 4.2) {
+                hazardSpawnTimer = 0;
+                spawnHazard();
+            }
+
+            // 7. Обновление всплывающих частиц
+            for (let i = floatingParticles.length - 1; i >= 0; i--) {
+                const p = floatingParticles[i];
+                p.y -= 28 * dt;
+                p.life -= dt * 0.9;
+                if (p.life <= 0) floatingParticles.splice(i, 1);
+            }
+        }
+
+        // --- ОТРИСОВКА МИНИМАЛИСТИЧНОГО РЕСТОРАНА НА CANVAS ---
+        function renderGame(timeNow) {
+            ctx.clearRect(0, 0, WORLD_W, WORLD_H);
+
+            // Цветовая палитра в зависимости от выбранной темы (Секретный клик)
+            const isNeon = currentThemeIndex === 1;
+            const isSunset = currentThemeIndex === 2;
+
+            const floorColorA = isNeon ? '#0f172a' : (isSunset ? '#2e1065' : '#f8fafc');
+            const floorColorB = isNeon ? '#1e293b' : (isSunset ? '#3b0764' : '#f1f5f9');
+
+            // 1. Шахматная плитка пола ресторана (минимализм)
+            const tileSize = 40;
+            for (let r = 0; r < WORLD_H / tileSize; r++) {
+                for (let c = 0; c < WORLD_W / tileSize; c++) {
+                    ctx.fillStyle = (r + c) % 2 === 0 ? floorColorA : floorColorB;
+                    ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+                }
+            }
+
+            // Рамка зала
+            ctx.strokeStyle = isNeon ? '#14b8a6' : '#cbd5e1';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(4, 4, WORLD_W - 8, WORLD_H - 8);
+
+            // 2. Стойка выдачи заказов сверху
+            ctx.fillStyle = isNeon ? '#134e4a' : '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(servingZone.x, servingZone.y, servingZone.w, servingZone.h, 14);
+            ctx.fill();
+
+            ctx.strokeStyle = '#14b8a6';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🛎️ СТОЙКА ВЫДАЧИ ЗАКАЗОВ (НЕСИ 🍔 СЮДА)', servingZone.x + servingZone.w / 2, servingZone.y + 34);
+
+            // 3. Минималистичные столы в зале
+            for (const obs of obstacles) {
+                ctx.fillStyle = isNeon ? '#1e1b4b' : '#ffffff';
+                ctx.beginPath();
+                ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 14);
+                ctx.fill();
+
+                ctx.strokeStyle = isNeon ? '#818cf8' : '#94a3b8';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                ctx.fillStyle = isNeon ? '#c7d2fe' : '#64748b';
+                ctx.font = '600 12px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`🍽️ ${obs.label}`, obs.x + obs.w / 2, obs.y + obs.h / 2 + 4);
+            }
+
+            // 4. Отрисовка бургеров на полу
+            for (const b of burgersOnFloor) {
+                const bob = Math.sin(timeNow * 0.005 + b.bobOffset) * 3;
+
+                // Тень под бургером
+                ctx.fillStyle = b.isGolden ? 'rgba(245, 158, 11, 0.28)' : 'rgba(20, 184, 166, 0.22)';
+                ctx.beginPath();
+                ctx.arc(b.x, b.y + 2, b.radius + 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = b.isGolden ? '28px sans-serif' : '25px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🍔', b.x, b.y + bob);
+
+                if (b.isGolden) {
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText('✨', b.x + 12, b.y - 12 + bob);
+                }
+            }
+
+            // 5. Отрисовка опасностей кухни
+            for (const h of hazards) {
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.22)';
+                ctx.beginPath();
+                ctx.arc(h.x, h.y, h.radius + 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = '24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(h.icon, h.x, h.y);
+            }
+
+            // 6. Отрисовка орбиты Неонового меча (если разблокирован в IAP магазине)
+            if (player.hasNeonSword) {
+                const swordX = player.x + Math.cos(player.swordAngle) * 38;
+                const swordY = player.y + Math.sin(player.swordAngle) * 38;
+
+                // Неоновый шлейф
+                ctx.strokeStyle = 'rgba(45, 212, 191, 0.45)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, 38, player.swordAngle - 1.2, player.swordAngle);
+                ctx.stroke();
+
+                ctx.font = '22px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('⚔️', swordX, swordY);
+            }
+
+            // 7. Отрисовка Главного Героя (Шеф-повара)
+            ctx.save();
+            if (player.invulnerableTimer > 0 && Math.floor(timeNow / 80) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+
+            // Круг-основа героя
+            ctx.fillStyle = player.hasNeonSword ? '#0d9488' : '#0f172a';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = player.doubleMultiplierTimer > 0 ? '#facc15' : '#2dd4bf';
+            ctx.stroke();
+
+            // Иконка шефа
+            ctx.font = '24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('👨‍🍳', player.x, player.y);
+
+            // Индикатор собранных бургеров над головой героя
+            if (player.carriedBurgers > 0) {
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.roundRect(player.x - 24, player.y - 38, 48, 16, 6);
+                ctx.fill();
+
+                ctx.fillStyle = '#2dd4bf';
+                ctx.font = 'bold 11px Inter, sans-serif';
+                ctx.fillText(`🍔 x${player.carriedBurgers}`, player.x, player.y - 30);
+            }
+            ctx.restore();
+
+            // 8. Всплывающие тексты очков и бонусов
+            for (const p of floatingParticles) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.font = '800 13px Inter, sans-serif';
+                ctx.fillStyle = p.color;
+                ctx.textAlign = 'center';
+                ctx.fillText(p.text, p.x, p.y);
+                ctx.restore();
+            }
+
+            // 9. Водяной знак студии в углу холста
+            ctx.fillStyle = isNeon ? 'rgba(255,255,255,0.35)' : 'rgba(15,23,42,0.35)';
+            ctx.font = '600 11px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('Asro Games • Dev: Dmitry', WORLD_W - 14, WORLD_H - 12);
+        }
+
+        function resizeCanvas() {
+            canvas.width = WORLD_W;
+            canvas.height = WORLD_H;
+        }
+
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            updateGame(dt);
+            renderGame(now);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Запуск игры после полной загрузки окна
+        window.onload = function () {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            for (let i = 0; i < 4; i++) {
+                spawnBurger();
+            }
+            initCustomerOrders();
+            updateHUD();
+
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
